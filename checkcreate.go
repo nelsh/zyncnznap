@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"os/user"
@@ -14,14 +13,8 @@ import (
 )
 
 var (
-	checkOnly   bool
 	zSyncUserID int
 )
-
-func init() {
-	flag.BoolVar(&checkOnly, "checkonly", true, "Set 'false' for creating ZFS partitions from config")
-	flag.Parse()
-}
 
 func checkcreate() {
 	// Read configuration
@@ -56,7 +49,7 @@ func checkcreate() {
 		err = isExistZfsPartition(zPath, "")
 
 		if err != nil {
-			if checkOnly {
+			if checkonly {
 				continue
 			} else {
 				makeZfsPartition(zPath)
@@ -66,7 +59,7 @@ func checkcreate() {
 			zPath := path.Join(zPath, server)
 			err = isExistZfsPartition(zPath, "\t")
 			if err != nil {
-				if checkOnly {
+				if checkonly {
 					continue
 				} else {
 					makeZfsPartition(zPath)
@@ -76,7 +69,7 @@ func checkcreate() {
 				zPath := path.Join(zPath, dir)
 				err = isExistZfsPartition(zPath, "\t\t")
 				if err != nil {
-					if checkOnly {
+					if checkonly {
 						continue
 					} else {
 						makeZfsPartition(zPath)
@@ -92,7 +85,7 @@ func isExistZfsPartition(zPath string, level string) (err error) {
 	_, err = zfs.GetDataset(zPath)
 	if err != nil {
 		fmt.Print("ERROR...")
-		if checkOnly {
+		if checkonly {
 			fmt.Println("")
 		}
 		if !strings.Contains(err.Error(), "dataset does not exist") {
