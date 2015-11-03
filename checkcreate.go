@@ -23,7 +23,7 @@ func init() {
 	flag.Parse()
 }
 
-func main() {
+func checkcreate() {
 	// Read configuration
 	viper.SetConfigFile("zs.conf")
 	viper.SetConfigType("toml")
