@@ -30,8 +30,7 @@ func checkcreate() {
 	// enumerate backups and check path
 	for group := range viper.GetStringMap("groups") {
 		zPath := path.Join(viper.GetString("ZfsPath"), group)
-		err := isExistZfsPartition(zPath, "")
-		if err != nil {
+		if err := isExistZfsPartition(zPath, ""); err != nil {
 			if checkonly {
 				continue
 			} else {
@@ -40,8 +39,7 @@ func checkcreate() {
 		}
 		for server := range viper.GetStringMap("groups." + group + ".servers") {
 			zPath := path.Join(zPath, server)
-			err = isExistZfsPartition(zPath, "\t")
-			if err != nil {
+			if err := isExistZfsPartition(zPath, "\t"); err != nil {
 				if checkonly {
 					continue
 				} else {
@@ -50,8 +48,7 @@ func checkcreate() {
 			}
 			for dir := range viper.GetStringMap("groups." + group + ".servers." + server + ".dirs") {
 				zPath := path.Join(zPath, dir)
-				err = isExistZfsPartition(zPath, "\t\t")
-				if err != nil {
+				if err := isExistZfsPartition(zPath, "\t\t"); err != nil {
 					if checkonly {
 						continue
 					} else {
@@ -65,8 +62,7 @@ func checkcreate() {
 
 func isExistZfsPartition(zPath string, level string) (err error) {
 	fmt.Printf("%s%s...", level, zPath)
-	_, err = zfs.GetDataset(zPath)
-	if err != nil {
+	if _, err = zfs.GetDataset(zPath); err != nil {
 		fmt.Print("ERROR...")
 		if checkonly {
 			fmt.Println("")
@@ -86,8 +82,7 @@ func makeZfsPartition(zPath string) {
 		panic(err)
 	} else {
 		fmt.Printf("make new zfs: %s...%s\n", ds.Mountpoint, "OK")
-		err = os.Chown(ds.Mountpoint, zSyncUserID, -1)
-		if err != nil {
+		if err := os.Chown(ds.Mountpoint, zSyncUserID, -1); err != nil {
 			panic(err)
 		}
 	}
