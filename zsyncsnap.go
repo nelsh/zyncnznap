@@ -12,7 +12,8 @@ import (
 
 var (
 	task      string
-	checkonly bool // Optional for task 'check'
+	checkonly bool   // Optional for task 'check'
+	group     string // Required for task 'sync'
 )
 
 func init() {
@@ -24,10 +25,12 @@ func init() {
 	flag.BoolVar(&checkonly, "checkonly", true,
 		`Optional for task 'check'.
         Set 'false' for creating ZFS partitions from config`)
+	flag.StringVar(&group, "group", "",
+		"Required. Name of backup group.")
 	flag.Usage = func() {
 		fmt.Printf("Usage:\n")
 		fmt.Printf("  %s -task=check [-checkonly=false]\n", filepath.Base(os.Args[0]))
-		fmt.Printf("  %s -task=sync [-group=<name>]\n", filepath.Base(os.Args[0]))
+		fmt.Printf("  %s -task=sync -group=<name>\n", filepath.Base(os.Args[0]))
 		fmt.Printf("  %s -task=snap\n\n", filepath.Base(os.Args[0]))
 		flag.PrintDefaults()
 		fmt.Println("")
@@ -35,6 +38,11 @@ func init() {
 	flag.Parse()
 	if task == "" || (task != "check" && task != "sync" && task != "snap") {
 		fmt.Printf("task '%s' not set or not found\n", task)
+		flag.Usage()
+		os.Exit(1)
+	}
+	if task == "sync" && group == "" {
+		fmt.Println("not set group for task 'sync'")
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -54,21 +62,8 @@ func main() {
 		checkcreate()
 	case "sync":
 		fmt.Println("Run task Sync")
+		dorsync()
 	case "snap":
 		fmt.Println("Run task Snap")
 	}
-	/*
-		if _, err := os.Stat(viper.GetString("BackupPath")); os.IsNotExist(err) {
-			panic(fmt.Errorf("Fatal error: %s \n", err))
-		}
-		for group := range viper.GetStringMap("groups") {
-			fmt.Printf("%s\n", group)
-			for server := range viper.GetStringMap("groups." + group + ".servers") {
-				fmt.Printf("\t%s\n", server)
-				for dir := range viper.GetStringMap("groups." + group + ".servers." + server + ".dirs") {
-					fmt.Printf("\t\t%s\n", dir)
-				}
-			}
-		}
-	*/
 }
