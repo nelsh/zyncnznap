@@ -58,6 +58,9 @@ func main() {
 		fmt.Println("Run task Snap")
 	}
 	/*
+		if _, err := os.Stat(viper.GetString("BackupPath")); os.IsNotExist(err) {
+			panic(fmt.Errorf("Fatal error: %s \n", err))
+		}
 		for group := range viper.GetStringMap("groups") {
 			fmt.Printf("%s\n", group)
 			for server := range viper.GetStringMap("groups." + group + ".servers") {

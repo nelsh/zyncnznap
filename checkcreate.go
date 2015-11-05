@@ -23,23 +23,14 @@ func checkcreate() {
 	} else {
 		zSyncUserID, err = strconv.Atoi(u.Uid)
 	}
-
-	/*	if _, err := os.Stat(viper.GetString("BackupPath")); os.IsNotExist(err) {
-			panic(fmt.Errorf("Fatal error: %s \n", err))
-		}
-	*/
 	// check root backup path
 	if err := isExistZfsPartition(viper.GetString("ZfsPath"), ""); err != nil {
 		panic(err)
 	}
 	// enumerate backups and check path
 	for group := range viper.GetStringMap("groups") {
-		/*fmt.Printf("Group: %s, type=%s\n", s,
-		viper.GetString("group."+s+".type"))
-		*/
 		zPath := path.Join(viper.GetString("ZfsPath"), group)
 		err := isExistZfsPartition(zPath, "")
-
 		if err != nil {
 			if checkonly {
 				continue
