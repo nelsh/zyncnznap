@@ -17,36 +17,28 @@ var (
 )
 
 func checkcreate() {
-	// Read configuration
-	viper.SetConfigFile("zs.conf")
-	viper.SetConfigType("toml")
-	err := viper.ReadInConfig()
-	if err != nil {
-		panic(fmt.Errorf("Fatal error config file: %s \n", err))
-	}
 	// check zSyncUser
-	u, err := user.Lookup(viper.GetString("zSyncUser"))
-	if err != nil {
+	if u, err := user.Lookup(viper.GetString("zSyncUser")); err != nil {
 		panic(err)
-	}
-	zSyncUserID, err = strconv.Atoi(u.Uid)
-	// check backup path
-	err = isExistZfsPartition(viper.GetString("ZfsPath"), "")
-	if err != nil {
-		panic(err)
+	} else {
+		zSyncUserID, err = strconv.Atoi(u.Uid)
 	}
 
 	/*	if _, err := os.Stat(viper.GetString("BackupPath")); os.IsNotExist(err) {
 			panic(fmt.Errorf("Fatal error: %s \n", err))
 		}
 	*/
+	// check root backup path
+	if err := isExistZfsPartition(viper.GetString("ZfsPath"), ""); err != nil {
+		panic(err)
+	}
 	// enumerate backups and check path
-	for group := range viper.GetStringMap("group") {
+	for group := range viper.GetStringMap("groups") {
 		/*fmt.Printf("Group: %s, type=%s\n", s,
 		viper.GetString("group."+s+".type"))
 		*/
 		zPath := path.Join(viper.GetString("ZfsPath"), group)
-		err = isExistZfsPartition(zPath, "")
+		err := isExistZfsPartition(zPath, "")
 
 		if err != nil {
 			if checkonly {
@@ -55,7 +47,7 @@ func checkcreate() {
 				makeZfsPartition(zPath)
 			}
 		}
-		for server := range viper.GetStringMap("group." + group + ".servers") {
+		for server := range viper.GetStringMap("groups." + group + ".servers") {
 			zPath := path.Join(zPath, server)
 			err = isExistZfsPartition(zPath, "\t")
 			if err != nil {
@@ -65,7 +57,7 @@ func checkcreate() {
 					makeZfsPartition(zPath)
 				}
 			}
-			for dir := range viper.GetStringMap("group." + group + ".servers." + server + ".dirs") {
+			for dir := range viper.GetStringMap("groups." + group + ".servers." + server + ".dirs") {
 				zPath := path.Join(zPath, dir)
 				err = isExistZfsPartition(zPath, "\t\t")
 				if err != nil {
