@@ -62,7 +62,11 @@ func main() {
 		checkcreate()
 	case "sync":
 		fmt.Println("Run task Sync")
-		dorsync()
+		if err := dorsync(group); err != nil {
+			fmt.Printf("Exit with fatal error: %s\n", err)
+			os.Exit(1)
+		}
+		fmt.Println("End task Sync")
 	case "snap":
 		fmt.Println("Run task Snap")
 	}
