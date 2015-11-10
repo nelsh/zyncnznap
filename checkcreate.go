@@ -23,10 +23,29 @@ func checkcreate() {
 	} else {
 		zSyncUserID, err = strconv.Atoi(u.Uid)
 	}
+	// check logpath
+	if !viper.IsSet("LogPath") {
+		panic(fmt.Errorf("'LogPath' not set in config%s", "."))
+	}
+	logPath := viper.GetString("LogPath")
+	if _, err := os.Stat(logPath); os.IsNotExist(err) {
+		if checkonly {
+			fmt.Printf("log dir '%s' not exist\n", logPath)
+		} else {
+			fmt.Printf("make dir '%s'...\n", logPath)
+			if err := os.MkdirAll(logPath, 0750); err != nil {
+				panic(err)
+			}
+			if err := os.Chown(logPath, zSyncUserID, -1); err != nil {
+				panic(err)
+			}
+		}
+	}
 	// check root backup path
 	if err := isExistZfsPartition(viper.GetString("ZfsPath"), ""); err != nil {
 		panic(err)
 	}
+
 	// enumerate backups and check path
 	for group := range viper.GetStringMap("groups") {
 		zPath := path.Join(viper.GetString("ZfsPath"), group)

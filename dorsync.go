@@ -4,9 +4,18 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/viper"
 )
+
+type RsyncPar struct {
+	dnsname    string
+	port       int
+	remotepath string
+	localpath  string
+	logpath    string
+}
 
 func dorsync(group string) error {
 	// check group exist
@@ -24,6 +33,16 @@ func dorsync(group string) error {
 	if len(servers) == 0 {
 		return fmt.Errorf("Empty server list of group '%s'", group)
 	}
+	// check type/command of group
+	groupTypeKey := "groups." + group + ".type"
+	if !viper.IsSet(groupTypeKey) {
+		return fmt.Errorf("Property 'type' for group '%s' not found in config", group)
+	}
+	rsyncCmdKey := "rsynccmd." + viper.GetString(groupTypeKey)
+	if !viper.IsSet(rsyncCmdKey) {
+		return fmt.Errorf("Rsync cmd '%s' not found in config", rsyncCmdKey)
+	}
+	rsyncCmdTmpl := viper.GetString(rsyncCmdKey)
 
 	//enumerate servers
 	for server := range servers {
@@ -34,6 +53,19 @@ func dorsync(group string) error {
 			fmt.Printf("  WARN: skip server '%s', path '%s' not exist\n", server, serverBackupPath)
 			continue
 		}
+		dnsNameKey := keyOfServers + "." + server + ".host"
+		if !viper.IsSet(dnsNameKey) {
+			fmt.Printf("  WARN: skip server '%s', hostname not found in config\n", server)
+			continue
+		}
+		rsyncPar := RsyncPar{dnsname: viper.GetString(dnsNameKey)}
+		portKey := keyOfServers + "." + server + ".port"
+		if !viper.IsSet(portKey) {
+			rsyncPar.port = 22
+		} else {
+			rsyncPar.port = viper.GetInt(portKey)
+		}
+
 		// check list of dirs
 		keyOfDirs := keyOfServers + "." + server + ".dirs"
 		dirs := viper.GetStringMap(keyOfDirs)
@@ -43,14 +75,19 @@ func dorsync(group string) error {
 		}
 		// enumerate dirs
 		for dir := range dirs {
-			dirBackupPath := filepath.Join(serverBackupPath, dir)
+			rsyncPar.localpath = filepath.Join(serverBackupPath, dir)
 			// if backup path not exist - skip
-			if _, err := os.Stat(dirBackupPath); os.IsNotExist(err) {
-				fmt.Printf("\tWARN: skip dir '%s', path '%s' not exist\n", dir, dirBackupPath)
+			if _, err := os.Stat(rsyncPar.localpath); os.IsNotExist(err) {
+				fmt.Printf("\tWARN: skip dir '%s', path '%s' not exist\n", dir, rsyncPar.localpath)
 				continue
 			}
 			fmt.Printf("\tsync dir '%s'\n", dir)
-			fmt.Println(viper.GetString(keyOfDirs + "." + dir + ".remote"))
+			rsyncPar.remotepath = viper.GetString(keyOfDirs + "." + dir + ".remote")
+			rsyncPar.logpath = filepath.Join(viper.GetString("LogPath"),
+				strings.Join([]string{group, server, dir}, "-")+".log")
+			rsyncCmd := fmt.Sprintf(rsyncCmdTmpl,
+				rsyncPar.port, rsyncPar.logpath, rsyncPar.dnsname, rsyncPar.remotepath, rsyncPar.localpath)
+			fmt.Println(rsyncCmd)
 		}
 	}
 	return nil
