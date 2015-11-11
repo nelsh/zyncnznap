@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -18,6 +19,14 @@ type RsyncPar struct {
 }
 
 func dorsync(group string) error {
+	//check rsync binary
+	if !viper.IsSet("RsyncBin") {
+		return fmt.Errorf("Property 'RsyncBin' not found in config%s", ".")
+	}
+	rsyncBin := viper.GetString("RsyncBin")
+	if _, err := os.Stat(rsyncBin); os.IsNotExist(err) {
+		return fmt.Errorf("RsyncBin '%s' not exist", rsyncBin)
+	}
 	// check group exist
 	if !viper.IsSet("groups." + group) {
 		return fmt.Errorf("Group '%s' not found in config", group)
@@ -82,12 +91,22 @@ func dorsync(group string) error {
 				continue
 			}
 			fmt.Printf("\tsync dir '%s'\n", dir)
+			// construct rsync parameters
 			rsyncPar.remotepath = viper.GetString(keyOfDirs + "." + dir + ".remote")
 			rsyncPar.logpath = filepath.Join(viper.GetString("LogPath"),
 				strings.Join([]string{group, server, dir}, "-")+".log")
-			rsyncCmd := fmt.Sprintf(rsyncCmdTmpl,
+			rsyncArgString := fmt.Sprintf(rsyncCmdTmpl,
 				rsyncPar.port, rsyncPar.logpath, rsyncPar.dnsname, rsyncPar.remotepath, rsyncPar.localpath)
-			fmt.Println(rsyncCmd)
+			rsyncArgs := strings.Fields(rsyncArgString)
+			fmt.Println(strings.Join(rsyncArgs, " "))
+			// execute rsync
+			cmd := exec.Command(rsyncBin, rsyncArgs...)
+			outputs, err := cmd.CombinedOutput()
+			if err != nil {
+				fmt.Println("err: " + err.Error())
+			}
+			fmt.Println("out: " + string(outputs))
+
 		}
 	}
 	return nil
