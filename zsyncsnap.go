@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -56,18 +58,30 @@ func init() {
 }
 
 func main() {
+	logFileName := filepath.Join(
+		viper.GetString("LogPath"),
+		strings.Split(filepath.Base(os.Args[0]), ".")[0]+".log")
+	logFile, err := os.OpenFile(logFileName,
+		os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0664)
+	if err != nil {
+		panic(err)
+	}
+	defer logFile.Close()
+	log.SetOutput(io.MultiWriter(os.Stdout, logFile))
+
 	switch task {
 	case "check":
-		fmt.Println("Run task Check")
+		log.Println("INFO: Start task Check")
 		checkcreate()
 	case "sync":
-		fmt.Println("Run task Sync")
+		log.Println("INFO: Start task Sync")
 		if err := dorsync(group); err != nil {
-			fmt.Printf("Exit with fatal error: %s\n", err)
+			log.Printf("Exit with fatal error: %s\n", err)
 			os.Exit(1)
 		}
-		fmt.Println("End task Sync")
 	case "snap":
-		fmt.Println("Run task Snap")
+		log.Println("INFO: Start task Snap")
 	}
+
+	log.Println("INFO: Stop Successfull")
 }

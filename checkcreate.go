@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/user"
 	"path"
@@ -19,31 +20,31 @@ var (
 func checkcreate() {
 	// check zSyncUser
 	if u, err := user.Lookup(viper.GetString("zSyncUser")); err != nil {
-		panic(err)
+		log.Panicf("'zSyncUser' not set in config. %s", err)
 	} else {
 		zSyncUserID, err = strconv.Atoi(u.Uid)
 	}
 	// check logpath
 	if !viper.IsSet("LogPath") {
-		panic(fmt.Errorf("'LogPath' not set in config%s", "."))
+		log.Panic("'LogPath' not set in config")
 	}
 	logPath := viper.GetString("LogPath")
 	if _, err := os.Stat(logPath); os.IsNotExist(err) {
 		if checkonly {
-			fmt.Printf("log dir '%s' not exist\n", logPath)
+			log.Printf("log dir '%s' not exist\n", logPath)
 		} else {
-			fmt.Printf("make dir '%s'...\n", logPath)
+			log.Printf("make dir '%s'...\n", logPath)
 			if err := os.MkdirAll(logPath, 0750); err != nil {
-				panic(err)
+				log.Panic(err)
 			}
 			if err := os.Chown(logPath, zSyncUserID, -1); err != nil {
-				panic(err)
+				log.Panic(err)
 			}
 		}
 	}
 	// check root backup path
 	if err := isExistZfsPartition(viper.GetString("ZfsPath"), ""); err != nil {
-		panic(err)
+		log.Panic(err)
 	}
 
 	// enumerate backups and check path
@@ -53,7 +54,7 @@ func checkcreate() {
 			if checkonly {
 				continue
 			} else {
-				makeZfsPartition(zPath)
+				makeZfsPartition(zPath, "")
 			}
 		}
 		for server := range viper.GetStringMap("groups." + group + ".servers") {
@@ -62,7 +63,7 @@ func checkcreate() {
 				if checkonly {
 					continue
 				} else {
-					makeZfsPartition(zPath)
+					makeZfsPartition(zPath, "\t")
 				}
 			}
 			for dir := range viper.GetStringMap("groups." + group + ".servers." + server + ".dirs") {
@@ -71,7 +72,7 @@ func checkcreate() {
 					if checkonly {
 						continue
 					} else {
-						makeZfsPartition(zPath)
+						makeZfsPartition(zPath, "\t\t")
 					}
 				}
 			}
@@ -80,29 +81,29 @@ func checkcreate() {
 }
 
 func isExistZfsPartition(zPath string, level string) (err error) {
-	fmt.Printf("%s%s...", level, zPath)
+	msg := fmt.Sprintf("%s%s...", level, zPath)
 	if _, err = zfs.GetDataset(zPath); err != nil {
-		fmt.Print("ERROR...")
+		msg += "ERROR..."
 		if checkonly {
-			fmt.Println("")
+			log.Println(msg)
 		}
 		if !strings.Contains(err.Error(), "dataset does not exist") {
-			panic(err)
+			log.Panicf("%s %s", msg, err)
 		}
 	} else {
-		fmt.Println("OK")
+		log.Printf("%s OK\n", msg)
 	}
 	return err
 }
 
-func makeZfsPartition(zPath string) {
+func makeZfsPartition(zPath string, level string) {
 	ds, err := zfs.CreateFilesystem(zPath, nil)
 	if err != nil {
-		panic(err)
+		log.Panic(err)
 	} else {
-		fmt.Printf("make new zfs: %s...%s\n", ds.Mountpoint, "OK")
+		log.Printf("%smake new zfs: %s...%s\n", level, ds.Mountpoint, "OK")
 		if err := os.Chown(ds.Mountpoint, zSyncUserID, -1); err != nil {
-			panic(err)
+			log.Panic(err)
 		}
 	}
 }
