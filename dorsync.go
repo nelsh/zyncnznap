@@ -90,15 +90,21 @@ func dorsync(group string) error {
 				fmt.Printf("\tWARN: skip dir '%s', path '%s' not exist\n", dir, rsyncPar.localpath)
 				continue
 			}
-			fmt.Printf("\tsync dir '%s'\n", dir)
+			fmt.Printf("\tsync dir '%s' with par:\n", dir)
 			// construct rsync parameters
 			rsyncPar.remotepath = viper.GetString(keyOfDirs + "." + dir + ".remote")
 			rsyncPar.logpath = filepath.Join(viper.GetString("LogPath"),
 				strings.Join([]string{group, server, dir}, "-")+".log")
 			rsyncArgString := fmt.Sprintf(rsyncCmdTmpl,
 				rsyncPar.port, rsyncPar.logpath, rsyncPar.dnsname, rsyncPar.remotepath, rsyncPar.localpath)
+			fmt.Println(rsyncArgString)
 			rsyncArgs := strings.Fields(rsyncArgString)
-			fmt.Println(strings.Join(rsyncArgs, " "))
+			// if par ~= -e+ssh+-p+22+-i+rsbackup.rsa
+			// change plus to space
+			for i := 0; i < len(rsyncArgs); i++ {
+				rsyncArgs[i] = strings.Replace(rsyncArgs[i], "+", " ", -1)
+			}
+
 			// execute rsync
 			cmd := exec.Command(rsyncBin, rsyncArgs...)
 			outputs, err := cmd.CombinedOutput()
