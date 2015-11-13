@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -167,7 +168,11 @@ func dorsync(group string) error {
 					" ")[0])
 			}
 			getSize := func(s string) string {
-				return strings.Split(getNum(s), ",")[0]
+				i, err := strconv.Atoi(strings.Replace(getNum(s), ",", "", -1))
+				if err != nil {
+					return "err"
+				}
+				return fmt.Sprintf("%.1f", float64(i)/1024)
 			}
 			for _, s := range strings.Split(string(outputs), "\n") {
 				if strings.HasPrefix(s, "Number of files:") {
