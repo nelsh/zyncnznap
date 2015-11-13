@@ -61,6 +61,10 @@ func main() {
 	logFileName := filepath.Join(
 		viper.GetString("LogPath"),
 		strings.Split(filepath.Base(os.Args[0]), ".")[0]+".log")
+	/*
+		DO - delete next string
+	*/
+	os.Remove(logFileName)
 	logFile, err := os.OpenFile(logFileName,
 		os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0664)
 	if err != nil {
@@ -77,6 +81,9 @@ func main() {
 		log.Println("INFO: Start task Sync")
 		if err := dorsync(group); err != nil {
 			log.Printf("Exit with fatal error: %s\n", err)
+			/*
+				DO - Sent message
+			*/
 			os.Exit(1)
 		}
 	case "snap":
@@ -84,4 +91,5 @@ func main() {
 	}
 
 	log.Println("INFO: Stop Successfull")
+	log.Println("----------------------")
 }
