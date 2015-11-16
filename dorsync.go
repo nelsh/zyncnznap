@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -40,6 +41,25 @@ type Totals struct {
 }
 
 func dorsync(group string) error {
+	/*
+		RUN CHECK'S
+	*/
+
+	// it's already running?
+	pidFileName := filepath.Join(
+		"run", strings.Split(filepath.Base(os.Args[0]), ".")[0]+".pid")
+	pidFileName = "test.pid"
+	if _, err := os.Stat(pidFileName); err == nil {
+		//return fmt.Errorf("RsyncBin '%s' not exist", rsyncBin)
+		if procnum, err := ioutil.ReadFile(pidFileName); err != nil {
+			fmt.Println(err.Error())
+		} else {
+			fmt.Println(string(procnum))
+		}
+	}
+	/*
+		DO
+	*/
 	//check rsync binary
 	if !viper.IsSet("RsyncBin") {
 		return fmt.Errorf("Property 'RsyncBin' not found in config%s", ".")
@@ -74,20 +94,29 @@ func dorsync(group string) error {
 	}
 	rsyncCmdTmpl := viper.GetString(rsyncCmdKey)
 
-	// it's already running?
 	/*
-		DO
+		MAIN PROCEDURE
 	*/
-
+	delimeter := func() string {
+		return "\n" + strings.Repeat("-", 74) + "\n"
+	}
 	totals := Totals{
-		report: fmt.Sprintf("%-18s | %16s | %22s | %7s |\n\n",
+		report: fmt.Sprintf("%-18s | %16s | %22s | %7s |",
 			"Server/Dir", "Files recv/total", "Size in Kb recv/total", "Minutes"),
 	}
-	//enumerate servers
+	totals.report += delimeter()
+	//
+	// enumerate servers
+	//
 	for server := range servers {
+		// using 'logTotals' in local checks
+		logTotals := func(totals *Totals, msg string) {
+			totals.warnNum++
+			totals.warnMsg += msg
+			log.Printf(msg)
+		}
 		log.Printf("- Sync server '%s'\n", server)
 		serverBackupPath := filepath.Join(groupBackupPath, server)
-		// if backup path not exist - skip
 		if _, err := os.Stat(serverBackupPath); os.IsNotExist(err) {
 			msg := fmt.Sprintf("  WARN: skip server '%s', path '%s' not exist\n", server, serverBackupPath)
 			logTotals(&totals, msg)
@@ -115,7 +144,9 @@ func dorsync(group string) error {
 			logTotals(&totals, msg)
 			continue
 		}
+		//
 		// enumerate dirs
+		//
 		for dir := range dirs {
 			rsyncPar.localpath = filepath.Join(serverBackupPath, dir)
 			// if backup path not exist - skip
@@ -134,7 +165,7 @@ func dorsync(group string) error {
 			log.Println(rsyncArgString)
 			rsyncArgs := strings.Fields(rsyncArgString)
 			// if par ~= -e+ssh+-p+22+-i+rsbackup.rsa
-			// change plus to space
+			// 		then change 'plus' to 'space'
 			for i := 0; i < len(rsyncArgs); i++ {
 				rsyncArgs[i] = strings.Replace(rsyncArgs[i], "+", " ", -1)
 			}
@@ -161,7 +192,7 @@ func dorsync(group string) error {
 				sizeFilesTotal: "err",
 				sizeFilesRcvd:  "err",
 			}
-			// execute 'getValue' from next "for ... range"
+			// execute 'getNum' and 'getSize' from next "for ... range"
 			getNum := func(s string) string {
 				return strings.TrimSpace(strings.Split(
 					strings.TrimSpace(strings.Split(s, ":")[1]),
@@ -174,6 +205,7 @@ func dorsync(group string) error {
 				}
 				return fmt.Sprintf("%.1f", float64(i)/1024)
 			}
+			// reading rsync outputs
 			for _, s := range strings.Split(string(outputs), "\n") {
 				if strings.HasPrefix(s, "Number of files:") {
 					rsyncRpt.numFilesTotal = getNum(s)
@@ -185,7 +217,6 @@ func dorsync(group string) error {
 					rsyncRpt.sizeFilesRcvd = getSize(s)
 				}
 			}
-
 			totals.report += fmt.Sprintf("%-18s | %6s / %7s | %9s / %10s | %7.2f |\n",
 				rsyncRpt.serverdir,
 				rsyncRpt.numFilesRcvd, rsyncRpt.numFilesTotal,
@@ -194,19 +225,42 @@ func dorsync(group string) error {
 		}
 	}
 
+	//
 	// make report
-	fmt.Printf("errors/totals: %d/%d.\n%s",
-		totals.rsyncErrorTask, totals.rsyncTotalTask, totals.rsyncErrMsg)
-	fmt.Printf("other warnings: %d.\n%s", totals.warnNum, totals.warnMsg)
-	fmt.Println(totals.report)
-	// make subj
-	// task success/total totals.errNum
+	//
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "(local)?"
+	}
+	subj := fmt.Sprintf("Zsync %s: err/warn/total = %d/%d/%d",
+		strings.ToUpper(hostname), totals.rsyncErrorTask, totals.warnNum, totals.rsyncTotalTask)
+	msg := totals.report + delimeter() + totals.rsyncErrMsg + delimeter() + totals.warnMsg
+	// write report to logpath
+	err = ioutil.WriteFile(
+		filepath.Join(viper.GetString("LogPath"), "report.log"),
+		[]byte(subj+"\n\n"+msg), 0644)
+	if err != nil {
+		log.Printf("WARN: '%s'", err)
+	}
+	// send report
+	if err := sendReport(subj, msg); err != nil {
+		log.Printf("WARN: '%s'", err)
+	}
 
 	return nil
 }
 
-func logTotals(totals *Totals, msg string) {
-	totals.warnNum++
-	totals.warnMsg += msg
-	log.Printf(msg)
+func sendReport(subj string, msg string) error {
+	par := []string{
+		"--header", "'Auto-Submitted: auto-generated'",
+		"--to", "root",
+		"--subject", subj,
+		"--body", msg,
+	}
+	cmd := exec.Command("mime-construct", par...)
+	outputs, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s, %s", outputs, err)
+	}
+	return nil
 }

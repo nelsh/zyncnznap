@@ -62,7 +62,10 @@ func main() {
 		viper.GetString("LogPath"),
 		strings.Split(filepath.Base(os.Args[0]), ".")[0]+".log")
 	/*
-		DO - delete next string
+		DO
+		 - delete next string
+		 - ini-file for common settings github.com/sasbury/mini
+		 - toml-file for backup desciption
 	*/
 	os.Remove(logFileName)
 	logFile, err := os.OpenFile(logFileName,
