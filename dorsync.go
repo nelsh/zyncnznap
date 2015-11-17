@@ -40,59 +40,67 @@ type Totals struct {
 	report         string
 }
 
-func dorsync(group string) error {
+func dorsync(group string) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "(local)?"
+	}
+	pidFileName := filepath.Join(
+		"/run/lock", strings.Split(filepath.Base(os.Args[0]), ".")[0]+group+".pid")
 	/*
 		RUN CHECK'S
 	*/
-
-	// it's already running?
-	pidFileName := filepath.Join(
-		"run", strings.Split(filepath.Base(os.Args[0]), ".")[0]+".pid")
-	pidFileName = "test.pid"
+	// if next check's = failed
+	// - send notice and exit
+	exitWithMailMsg := func(msg string) {
+		log.Printf("Exit with fatal error: %s\n", msg)
+		subj := fmt.Sprintf("Zsync %s: Exit with fatal error", hostname)
+		if err := sendReport(subj, msg); err != nil {
+			log.Printf("WARN: '%s'", err)
+		}
+		os.Remove(pidFileName)
+		os.Exit(1)
+	}
+	// check one: it's already running?
 	if _, err := os.Stat(pidFileName); err == nil {
-		//return fmt.Errorf("RsyncBin '%s' not exist", rsyncBin)
 		if procnum, err := ioutil.ReadFile(pidFileName); err != nil {
-			fmt.Println(err.Error())
+			exitWithMailMsg("read pid file: " + err.Error())
 		} else {
-			fmt.Println(string(procnum))
+			exitWithMailMsg(fmt.Sprintf("File '%s' is exist, process number: %s",
+				pidFileName, string(procnum)))
 		}
 	}
-	/*
-		DO
-	*/
-	//check rsync binary
-	if !viper.IsSet("RsyncBin") {
-		return fmt.Errorf("Property 'RsyncBin' not found in config%s", ".")
+	// - create pid
+	if err := ioutil.WriteFile(pidFileName, []byte(strconv.Itoa(os.Getpid())), 0644); err != nil {
+		exitWithMailMsg("write pid file: " + err.Error())
 	}
-	rsyncBin := viper.GetString("RsyncBin")
-	if _, err := os.Stat(rsyncBin); os.IsNotExist(err) {
-		return fmt.Errorf("RsyncBin '%s' not exist", rsyncBin)
-	}
+
 	// check group exist
 	if !viper.IsSet("groups." + group) {
-		return fmt.Errorf("Group '%s' not found in config", group)
+		exitWithMailMsg(fmt.Sprintf("Group '%s' not found in config", group))
 	}
 	// check backup path for group
 	groupBackupPath := filepath.Join(viper.GetString("BackupPath"), group)
 	if _, err := os.Stat(groupBackupPath); os.IsNotExist(err) {
-		return fmt.Errorf("Path '%s' for group '%s' not exist", groupBackupPath, group)
+		exitWithMailMsg(fmt.Sprintf("Path '%s' for group '%s' not exist", groupBackupPath, group))
 	}
 	// check list of servers
 	keyOfServers := "groups." + group + ".servers"
 	servers := viper.GetStringMap(keyOfServers)
 	if len(servers) == 0 {
-		return fmt.Errorf("Empty server list of group '%s'", group)
+		exitWithMailMsg(fmt.Sprintf("Empty server list of group '%s'", group))
 	}
 	// check type/command of group
 	groupTypeKey := "groups." + group + ".type"
 	if !viper.IsSet(groupTypeKey) {
-		return fmt.Errorf("Property 'type' for group '%s' not found in config", group)
+		exitWithMailMsg(fmt.Sprintf("Property 'type' for group '%s' not found in config", group))
 	}
 	rsyncCmdKey := "rsynccmd." + viper.GetString(groupTypeKey)
 	if !viper.IsSet(rsyncCmdKey) {
-		return fmt.Errorf("Rsync cmd '%s' not found in config", rsyncCmdKey)
+		exitWithMailMsg(fmt.Sprintf("Rsync cmd '%s' not found in config", rsyncCmdKey))
 	}
 	rsyncCmdTmpl := viper.GetString(rsyncCmdKey)
+	/* end common check's */
 
 	/*
 		MAIN PROCEDURE
@@ -173,7 +181,7 @@ func dorsync(group string) error {
 			// execute rsync
 			timeStart := time.Now()
 			totals.rsyncTotalTask++
-			cmd := exec.Command(rsyncBin, rsyncArgs...)
+			cmd := exec.Command("rsync", rsyncArgs...)
 			outputs, err := cmd.CombinedOutput()
 			if err != nil {
 				totals.rsyncErrorTask++
@@ -228,10 +236,6 @@ func dorsync(group string) error {
 	//
 	// make report
 	//
-	hostname, err := os.Hostname()
-	if err != nil {
-		hostname = "(local)?"
-	}
 	subj := fmt.Sprintf("Zsync %s: err/warn/total = %d/%d/%d",
 		strings.ToUpper(hostname), totals.rsyncErrorTask, totals.warnNum, totals.rsyncTotalTask)
 	msg := totals.report + delimeter() + totals.rsyncErrMsg + delimeter() + totals.warnMsg
@@ -246,21 +250,5 @@ func dorsync(group string) error {
 	if err := sendReport(subj, msg); err != nil {
 		log.Printf("WARN: '%s'", err)
 	}
-
-	return nil
-}
-
-func sendReport(subj string, msg string) error {
-	par := []string{
-		"--header", "'Auto-Submitted: auto-generated'",
-		"--to", "root",
-		"--subject", subj,
-		"--body", msg,
-	}
-	cmd := exec.Command("mime-construct", par...)
-	outputs, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("%s, %s", outputs, err)
-	}
-	return nil
+	os.Remove(pidFileName)
 }

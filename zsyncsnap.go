@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -61,13 +62,6 @@ func main() {
 	logFileName := filepath.Join(
 		viper.GetString("LogPath"),
 		strings.Split(filepath.Base(os.Args[0]), ".")[0]+".log")
-	/*
-		DO
-		 - delete next string
-		 - ini-file for common settings github.com/sasbury/mini
-		 - toml-file for backup desciption
-	*/
-	os.Remove(logFileName)
 	logFile, err := os.OpenFile(logFileName,
 		os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0664)
 	if err != nil {
@@ -82,17 +76,26 @@ func main() {
 		checkcreate()
 	case "sync":
 		log.Println("INFO: Start task Sync")
-		if err := dorsync(group); err != nil {
-			log.Printf("Exit with fatal error: %s\n", err)
-			/*
-				DO - Sent message
-			*/
-			os.Exit(1)
-		}
+		dorsync(group)
 	case "snap":
 		log.Println("INFO: Start task Snap")
 	}
 
 	log.Println("INFO: Stop Successfull")
-	log.Println("----------------------")
+	log.Println(strings.Repeat("=", 75))
+}
+
+func sendReport(subj string, msg string) error {
+	par := []string{
+		"--header", "'Auto-Submitted: auto-generated'",
+		"--to", "root",
+		"--subject", subj,
+		"--body", msg,
+	}
+	cmd := exec.Command("mime-construct", par...)
+	outputs, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s, %s", outputs, err)
+	}
+	return nil
 }
