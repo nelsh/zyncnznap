@@ -93,11 +93,11 @@ func dorsync(group string) {
 	if !viper.IsSet(groupTypeKey) {
 		exitWithMailMsg(fmt.Sprintf("Property 'type' for group '%s' not found in config", group))
 	}
-	rsyncCmdKey := "rsynccmd." + viper.GetString(groupTypeKey)
-	if !viper.IsSet(rsyncCmdKey) {
-		exitWithMailMsg(fmt.Sprintf("Rsync cmd '%s' not found in config", rsyncCmdKey))
+	rsyncArgsKey := "rsyncargs." + viper.GetString(groupTypeKey)
+	if !viper.IsSet(rsyncArgsKey) {
+		exitWithMailMsg(fmt.Sprintf("Rsync cmd '%s' not found in config", rsyncArgsKey))
 	}
-	rsyncCmdTmpl := viper.GetString(rsyncCmdKey)
+	rsyncArgsTmpl := viper.GetString(rsyncArgsKey)
 	/* end common check's */
 
 	/*
@@ -166,7 +166,7 @@ func dorsync(group string) {
 			rsyncPar.remotepath = viper.GetString(keyOfDirs + "." + dir + ".remote")
 			rsyncPar.logpath = filepath.Join(viper.GetString("LogPath"),
 				strings.Join([]string{group, server, dir}, "-")+".log")
-			rsyncArgString := fmt.Sprintf(rsyncCmdTmpl,
+			rsyncArgString := fmt.Sprintf(rsyncArgsTmpl,
 				rsyncPar.port, rsyncPar.logpath, rsyncPar.dnsname, rsyncPar.remotepath, rsyncPar.localpath)
 			log.Println(rsyncArgString)
 			rsyncArgs := strings.Fields(rsyncArgString)
