@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/spf13/viper"
 )
 
@@ -103,10 +104,10 @@ func dorsync(group string) {
 		MAIN PROCEDURE
 	*/
 	delimeter := func() string {
-		return "\n" + strings.Repeat("-", 74) + "\n"
+		return "\n" + strings.Repeat("-", 80) + "\n"
 	}
 	totals := Totals{
-		report: fmt.Sprintf("%-18s | %16s | %22s | %7s |",
+		report: fmt.Sprintf("%-18s | %17s | %27s | %7s |",
 			"Server/Dir", "Files recv/total", "Size in Kb recv/total", "Minutes"),
 	}
 	totals.report += delimeter()
@@ -208,7 +209,7 @@ func dorsync(group string) {
 				if err != nil {
 					return "err"
 				}
-				return fmt.Sprintf("%.1f", float64(i)/1024)
+				return humanize.Commaf(float64(i) / 1024)
 			}
 			// reading rsync outputs
 			for _, s := range strings.Split(string(outputs), "\n") {
@@ -222,7 +223,7 @@ func dorsync(group string) {
 					rsyncRpt.sizeFilesRcvd = getSize(s)
 				}
 			}
-			totals.report += fmt.Sprintf("%-18s | %6s / %7s | %9s / %10s | %7.2f |\n",
+			totals.report += fmt.Sprintf("%-18s | %7s / %7s | %12s / %12s | %7.2f |\n",
 				rsyncRpt.serverdir,
 				rsyncRpt.numFilesRcvd, rsyncRpt.numFilesTotal,
 				rsyncRpt.sizeFilesRcvd, rsyncRpt.sizeFilesTotal,
