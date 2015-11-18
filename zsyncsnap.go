@@ -61,9 +61,9 @@ func init() {
 func main() {
 	logFileName := filepath.Join(
 		viper.GetString("LogPath"),
-		strings.Split(filepath.Base(os.Args[0]), ".")[0]+".log")
+		strings.Split(filepath.Base(os.Args[0]), ".")[0]+"-"+task+".log")
 	logFile, err := os.OpenFile(logFileName,
-		os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0664)
+		os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		panic(err)
 	}
@@ -79,6 +79,7 @@ func main() {
 		dorsync(group)
 	case "snap":
 		log.Println("INFO: Start task Snap")
+		dosnap()
 	}
 
 	log.Println("INFO: Stop Successfull")
@@ -98,4 +99,12 @@ func sendReport(subj string, msg string) error {
 		return fmt.Errorf("%s, %s", outputs, err)
 	}
 	return nil
+}
+
+func getHostName() string {
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "(local)?"
+	}
+	return hostname
 }

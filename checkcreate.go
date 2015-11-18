@@ -34,7 +34,7 @@ func checkcreate() {
 			log.Printf("log dir '%s' not exist\n", logPath)
 		} else {
 			log.Printf("make dir '%s'...\n", logPath)
-			if err := os.MkdirAll(logPath, 0750); err != nil {
+			if err := os.MkdirAll(logPath, 0777); err != nil {
 				log.Panic(err)
 			}
 			if err := os.Chown(logPath, zSyncUserID, -1); err != nil {

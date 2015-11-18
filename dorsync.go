@@ -41,10 +41,7 @@ type Totals struct {
 }
 
 func dorsync(group string) {
-	hostname, err := os.Hostname()
-	if err != nil {
-		hostname = "(local)?"
-	}
+	hostname := getHostName()
 	pidFileName := filepath.Join(
 		"/run/lock", strings.Split(filepath.Base(os.Args[0]), ".")[0]+group+".pid")
 	/*
@@ -240,9 +237,9 @@ func dorsync(group string) {
 		strings.ToUpper(hostname), totals.rsyncErrorTask, totals.warnNum, totals.rsyncTotalTask)
 	msg := totals.report + delimeter() + totals.rsyncErrMsg + delimeter() + totals.warnMsg
 	// write report to logpath
-	err = ioutil.WriteFile(
+	err := ioutil.WriteFile(
 		filepath.Join(viper.GetString("LogPath"), "report.log"),
-		[]byte(subj+"\n\n"+msg), 0644)
+		[]byte(subj+"\n\n"+msg), 0666)
 	if err != nil {
 		log.Printf("WARN: '%s'", err)
 	}
