@@ -52,7 +52,10 @@ func init() {
 	/*
 		Read configuration
 	*/
-	viper.SetConfigFile(strings.Split(filepath.Base(os.Args[0]), ".")[0] + ".toml")
+	viper.SetConfigFile(filepath.Base(os.Args[0]) + ".toml")
+	viper.AddConfigPath(filepath.Join("/etc", filepath.Base(os.Args[0])))
+	// for testing
+	viper.AddConfigPath("/home/vtadmin/")
 	if err := viper.ReadInConfig(); err != nil {
 		panic(err)
 	}
@@ -88,7 +91,7 @@ func main() {
 
 func sendReport(subj string, msg string) error {
 	par := []string{
-		"--header", "'Auto-Submitted: auto-generated'",
+		"--header", "Auto-Submitted: auto-generated",
 		"--to", "root",
 		"--subject", subj,
 		"--body", msg,

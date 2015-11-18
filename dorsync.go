@@ -170,10 +170,10 @@ func dorsync(group string) {
 				rsyncPar.port, rsyncPar.logpath, rsyncPar.dnsname, rsyncPar.remotepath, rsyncPar.localpath)
 			log.Println(rsyncArgString)
 			rsyncArgs := strings.Fields(rsyncArgString)
-			// if par ~= -e+ssh+-p+22+-i+rsbackup.rsa
-			// 		then change 'plus' to 'space'
+			// if par like '-e_ssh_-p_22_-i_rsbackup.rsa'
+			// 		then change 'underscore' to 'space'
 			for i := 0; i < len(rsyncArgs); i++ {
-				rsyncArgs[i] = strings.Replace(rsyncArgs[i], "+", " ", -1)
+				rsyncArgs[i] = strings.Replace(rsyncArgs[i], "_", " ", -1)
 			}
 
 			// execute rsync
@@ -209,7 +209,11 @@ func dorsync(group string) {
 				if err != nil {
 					return "err"
 				}
-				return humanize.Commaf(float64(i) / 1024)
+				s = humanize.Commaf(float64(i) / 1024)
+				if strings.Contains(s, ".") {
+					return s[:(strings.Index(s, ".") + 2)]
+				}
+				return s + ".0"
 			}
 			// reading rsync outputs
 			for _, s := range strings.Split(string(outputs), "\n") {
