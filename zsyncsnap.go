@@ -55,7 +55,7 @@ func init() {
 	viper.SetConfigFile(filepath.Base(os.Args[0]) + ".toml")
 	viper.AddConfigPath(filepath.Join("/etc", filepath.Base(os.Args[0])))
 	// for testing
-	viper.AddConfigPath("/home/vtadmin/")
+	viper.AddConfigPath(filepath.Join("/home/vtadmin/", filepath.Base(os.Args[0])))
 	if err := viper.ReadInConfig(); err != nil {
 		panic(err)
 	}
