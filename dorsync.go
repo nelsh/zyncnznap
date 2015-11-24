@@ -108,7 +108,7 @@ func dorsync(group string) {
 		return "\n" + strings.Repeat("-", 80) + "\n"
 	}
 	totals := Totals{
-		report: fmt.Sprintf("%-18s | %17s | %27s | %7s |",
+		report: fmt.Sprintf("%-16s | %17s | %29s | %7s |",
 			"Server/Dir", "Files recv/total", "Size in Kb recv/total", "Minutes"),
 	}
 	totals.report += delimeter()
@@ -184,8 +184,9 @@ func dorsync(group string) {
 			outputs, err := cmd.CombinedOutput()
 			if err != nil {
 				totals.rsyncErrorTask++
-				totals.rsyncErrMsg += fmt.Sprintf("  %s: %s\n",
-					strings.Join([]string{group, server, dir}, "-"), err.Error())
+				totals.rsyncErrMsg += fmt.Sprintf("  %s: %s\n%s\n\n",
+					strings.Join([]string{group, server, dir}, "-"),
+					err.Error(), string(outputs))
 				log.Println("\t\trsync output:\n" + string(outputs))
 			}
 			timeStop := time.Now()
@@ -228,7 +229,7 @@ func dorsync(group string) {
 					rsyncRpt.sizeFilesRcvd = getSize(s)
 				}
 			}
-			totals.report += fmt.Sprintf("%-18s | %7s / %7s | %12s / %12s | %7.2f |\n",
+			totals.report += fmt.Sprintf("%-16s | %7s / %7s | %13s / %13s | %7.2f |\n",
 				rsyncRpt.serverdir,
 				rsyncRpt.numFilesRcvd, rsyncRpt.numFilesTotal,
 				rsyncRpt.sizeFilesRcvd, rsyncRpt.sizeFilesTotal,
