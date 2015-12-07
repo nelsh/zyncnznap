@@ -42,6 +42,13 @@ func checkcreate() {
 			}
 		}
 	}
+	// check zippath
+	zipPath := viper.GetString("ZipPath")
+	if err := isExistZfsPartition(zipPath[1:], ""); err != nil {
+		if !checkonly {
+			makeZfsPartition(zipPath[1:], "")
+		}
+	}
 	// check root backup path
 	if err := isExistZfsPartition(viper.GetString("ZfsPath"), ""); err != nil {
 		log.Panic(err)

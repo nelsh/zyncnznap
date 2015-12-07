@@ -40,12 +40,17 @@ func init() {
 		fmt.Println("")
 	}
 	flag.Parse()
-	if task == "" || (task != "check" && task != "sync" && task != "snap") {
+	if task == "" || (task != "check" && task != "sync" && task != "snap" && task != "zip") {
 		fmt.Printf("task '%s' not set or not found\n", task)
 		flag.Usage()
 		os.Exit(1)
 	}
 	if task == "sync" && group == "" {
+		fmt.Println("not set group for task 'sync'")
+		flag.Usage()
+		os.Exit(1)
+	}
+	if task == "zip" && group == "" {
 		fmt.Println("not set group for task 'sync'")
 		flag.Usage()
 		os.Exit(1)
@@ -82,6 +87,9 @@ func main() {
 	case "snap":
 		log.Println("INFO: Start task Snap")
 		dosnap()
+	case "zip":
+		log.Println("INFO: Start task Zip")
+		dozip(group)
 	}
 
 	log.Println("INFO: Stop Successfull")
