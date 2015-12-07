@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -9,8 +10,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/spf13/viper"
 )
+
+type ZipTotals struct {
+	warnMsg      string
+	warnNum      int
+	zipErrMsg    string
+	zipErrorTask int
+	zipTotalTask int
+	report       string
+}
 
 func dozip(group string) {
 	hostname := getHostName()
@@ -21,8 +32,8 @@ func dozip(group string) {
 	// - send notice and exit
 	exitWithMailMsg := func(msg string) {
 		log.Printf("Exit with fatal error: %s\n", msg)
-		subj := fmt.Sprintf("zync'n'znap %s/%s: Exit with fatal error",
-			strings.ToUpper(hostname), strings.ToUpper(group))
+		subj := fmt.Sprintf("zync'n'znap %s/%s/%s: Exit with fatal error",
+			strings.ToUpper(hostname), strings.ToUpper(task), strings.ToUpper(group))
 		if err := sendReport(subj, msg); err != nil {
 			log.Printf("WARN: '%s'", err)
 		}
@@ -53,21 +64,39 @@ func dozip(group string) {
 	/*
 		MAIN PROCEDURE
 	*/
+	delimeter := func() string {
+		return "\n" + strings.Repeat("-", 60) + "\n"
+	}
+	totals := ZipTotals{
+		report: fmt.Sprintf("%-16s | %29s | %7s |",
+			"Server/Dir", "Size in Kb", "Minutes"),
+	}
+	totals.report += delimeter()
+
 	dateString := time.Now().Format("20060102")
 	//
 	// enumerate servers
 	//
 	for server := range servers {
+		// using 'logTotals' in local checks
+		logTotals := func(totals *ZipTotals, msg string) {
+			totals.warnNum++
+			totals.warnMsg += msg
+			log.Printf(msg)
+		}
+		log.Printf("- Zip server '%s'\n", server)
 		serverBackupPath := filepath.Join(groupBackupPath, server)
 		if _, err := os.Stat(serverBackupPath); os.IsNotExist(err) {
-			log.Printf("  WARN: skip server '%s', path '%s' not exist\n", server, serverBackupPath)
+			msg := fmt.Sprintf("  WARN: skip server '%s', path '%s' not exist\n", server, serverBackupPath)
+			logTotals(&totals, msg)
 			continue
 		}
 		// check list of dirs
 		keyOfDirs := keyOfServers + "." + server + ".dirs"
 		dirs := viper.GetStringMap(keyOfDirs)
 		if len(dirs) == 0 {
-			log.Printf("  WARN: skip server '%s', empty dir list\n", server)
+			msg := fmt.Sprintf("  WARN: skip server '%s', empty dir list\n", server)
+			logTotals(&totals, msg)
 			continue
 		}
 		//
@@ -77,7 +106,8 @@ func dozip(group string) {
 			dirBackupPath := filepath.Join(serverBackupPath, dir)
 			// if backup path not exist - skip
 			if _, err := os.Stat(dirBackupPath); os.IsNotExist(err) {
-				log.Printf("  WARN: skip dir '%s', path '%s' not exist\n", dir, dirBackupPath)
+				msg := fmt.Sprintf("  WARN: skip dir '%s', path '%s' not exist\n", dir, dirBackupPath)
+				logTotals(&totals, msg)
 				continue
 			}
 			// if packtozip = "false" for this dir - skip
@@ -88,22 +118,63 @@ func dozip(group string) {
 			}
 			if !packtozip {
 				log.Printf("  WARN: skip dir '%s', packtozip = '%t'\n", dir, packtozip)
+				totals.report += fmt.Sprintf("%-16s | %29s | %7.2f |\n",
+					fmt.Sprintf("%s/%s", server, dir), "SKIP", 0.0)
 				continue
 			}
+			zipFileName := filepath.Join(viper.GetString("ZipPath"), strings.Join([]string{group, server, dir, dateString}, "_")+".zip")
 			zipArgsString := fmt.Sprintf("-r -lf %s %s %s",
 				filepath.Join(viper.GetString("LogPath"), strings.Join([]string{"zip", group, server, dir}, "-")+".log"),
-				filepath.Join(viper.GetString("ZipPath"), strings.Join([]string{group, server, dir, dateString}, "_")+".zip"),
+				zipFileName,
 				dirBackupPath)
 			log.Printf("\tzip dir '%s' with par: %s\n", dir, zipArgsString)
 			zipArgs := strings.Fields(zipArgsString)
 			// execute zip
-			// timeStart := time.Now()
+			timeStart := time.Now()
+			totals.zipTotalTask++
 			cmd := exec.Command("zip", zipArgs...)
 			outputs, err := cmd.CombinedOutput()
 			if err != nil {
+				totals.zipErrorTask++
+				totals.zipErrMsg += fmt.Sprintf("  %s: %s\n%s\n\n",
+					strings.Join([]string{group, server, dir}, "-"),
+					err.Error(), string(outputs))
 				log.Println("\t\tzip output:\n" + string(outputs))
 			}
-			// timeStop := time.Now()
+			timeStop := time.Now()
+
+			fsize := "err"
+			fstat, err := os.Stat(zipFileName)
+			if err != nil {
+				msg := fmt.Sprintf("  WARN: error stat '%s'\n", zipFileName)
+				logTotals(&totals, msg)
+			} else {
+				fsize = humanize.Commaf(float64(fstat.Size()) / 1024)
+			}
+			totals.report += fmt.Sprintf("%-16s | %29s | %7.2f |\n",
+				fmt.Sprintf("%s/%s", server, dir),
+				fsize[:(strings.Index(fsize, ".")+2)],
+				timeStop.Sub(timeStart).Minutes())
 		}
 	}
+
+	//
+	// make report
+	//
+	subj := fmt.Sprintf("zync'n'znap zip %s/%s: err/warn/total = %d/%d/%d",
+		strings.ToUpper(hostname), strings.ToUpper(group),
+		totals.zipErrorTask, totals.warnNum, totals.zipTotalTask)
+	msg := totals.report + delimeter() + totals.zipErrMsg + delimeter() + totals.warnMsg
+	// write report to logpath
+	err := ioutil.WriteFile(
+		filepath.Join(viper.GetString("LogPath"), "zip-report.log"),
+		[]byte(subj+"\n\n"+msg), 0666)
+	if err != nil {
+		log.Printf("WARN: '%s'", err)
+	}
+	// send report
+	if err := sendReport(subj, msg); err != nil {
+		log.Printf("WARN: '%s'", err)
+	}
+
 }

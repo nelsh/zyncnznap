@@ -32,7 +32,7 @@ type RsyncRpt struct {
 	howlong        time.Duration
 }
 
-type Totals struct {
+type SyncTotals struct {
 	warnMsg        string
 	warnNum        int
 	rsyncErrMsg    string
@@ -52,8 +52,8 @@ func dorsync(group string) {
 	// - send notice and exit
 	exitWithMailMsg := func(msg string) {
 		log.Printf("Exit with fatal error: %s\n", msg)
-		subj := fmt.Sprintf("zync'n'znap %s/%s: Exit with fatal error",
-			strings.ToUpper(hostname), strings.ToUpper(group))
+		subj := fmt.Sprintf("zync'n'znap %s/%s/%s: Exit with fatal error",
+			strings.ToUpper(hostname), strings.ToUpper(task), strings.ToUpper(group))
 		if err := sendReport(subj, msg); err != nil {
 			log.Printf("WARN: '%s'", err)
 		}
@@ -107,7 +107,7 @@ func dorsync(group string) {
 	delimeter := func() string {
 		return "\n" + strings.Repeat("-", 80) + "\n"
 	}
-	totals := Totals{
+	totals := SyncTotals{
 		report: fmt.Sprintf("%-16s | %17s | %29s | %7s |",
 			"Server/Dir", "Files recv/total", "Size in Kb recv/total", "Minutes"),
 	}
@@ -117,7 +117,7 @@ func dorsync(group string) {
 	//
 	for server := range servers {
 		// using 'logTotals' in local checks
-		logTotals := func(totals *Totals, msg string) {
+		logTotals := func(totals *SyncTotals, msg string) {
 			totals.warnNum++
 			totals.warnMsg += msg
 			log.Printf(msg)
