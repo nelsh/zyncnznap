@@ -32,8 +32,8 @@ func dozip(group string) {
 	// - send notice and exit
 	exitWithMailMsg := func(msg string) {
 		log.Printf("Exit with fatal error: %s\n", msg)
-		subj := fmt.Sprintf("zync'n'znap %s/%s/%s: Exit with fatal error",
-			strings.ToUpper(hostname), strings.ToUpper(task), strings.ToUpper(group))
+		subj := fmt.Sprintf("zync'n'znap zip %s/%s: Exit with fatal error",
+			strings.ToUpper(hostname), strings.ToUpper(group))
 		if err := sendReport(subj, msg); err != nil {
 			log.Printf("WARN: '%s'", err)
 		}
@@ -68,7 +68,7 @@ func dozip(group string) {
 		return "\n" + strings.Repeat("-", 60) + "\n"
 	}
 	totals := ZipTotals{
-		report: fmt.Sprintf("%-16s | %29s | %7s |",
+		report: fmt.Sprintf("%-16s | %29s | %7s |\n",
 			"Server/Dir", "Size in Kb", "Minutes"),
 	}
 	totals.report += delimeter()
@@ -167,7 +167,7 @@ func dozip(group string) {
 	msg := totals.report + delimeter() + totals.zipErrMsg + delimeter() + totals.warnMsg
 	// write report to logpath
 	err := ioutil.WriteFile(
-		filepath.Join(viper.GetString("LogPath"), "zip-report.log"),
+		filepath.Join(viper.GetString("LogPath"), "zip-report"+group+".log"),
 		[]byte(subj+"\n\n"+msg), 0666)
 	if err != nil {
 		log.Printf("WARN: '%s'", err)
