@@ -39,14 +39,14 @@ func dozip(group string) {
 		}
 		os.Exit(1)
 	}
-	// check group exist
-	if !viper.IsSet("groups." + group) {
-		exitWithMailMsg(fmt.Sprintf("Group '%s' not found in config", group))
-	}
 	// check path for zip archive
 	zipPath := viper.GetString("ZipPath")
 	if _, err := os.Stat(zipPath); os.IsNotExist(err) {
 		exitWithMailMsg(fmt.Sprintf("Path '%s' for zip not exist", zipPath))
+	}
+	// check group exist
+	if !viper.IsSet("groups." + group) {
+		exitWithMailMsg(fmt.Sprintf("Group '%s' not found in config", group))
 	}
 	// check backup path for group
 	groupBackupPath := filepath.Join(viper.GetString("BackupPath"), group)
@@ -68,12 +68,13 @@ func dozip(group string) {
 		return "\n" + strings.Repeat("-", 60) + "\n"
 	}
 	totals := ZipTotals{
-		report: fmt.Sprintf("%-16s | %29s | %7s |\n",
+		report: fmt.Sprintf("%-16s | %29s | %7s |",
 			"Server/Dir", "Size in Kb", "Minutes"),
 	}
 	totals.report += delimeter()
 
 	dateString := time.Now().Format("20060102")
+
 	//
 	// enumerate servers
 	//

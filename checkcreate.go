@@ -19,8 +19,8 @@ var (
 
 func checkcreate() {
 	// check zSyncUser
-	if u, err := user.Lookup(viper.GetString("zSyncUser")); err != nil {
-		log.Panicf("'zSyncUser' not set in config. %s", err)
+	if u, err := user.Lookup(viper.GetString("ZyncUser")); err != nil {
+		log.Panicf("'ZyncUser' not set in config. %s", err)
 	} else {
 		zSyncUserID, err = strconv.Atoi(u.Uid)
 	}

@@ -66,16 +66,18 @@ func init() {
 }
 
 func main() {
-	logFileName := filepath.Join(
-		viper.GetString("LogPath"),
-		strings.Split(filepath.Base(os.Args[0]), ".")[0]+"-"+task+".log")
-	logFile, err := os.OpenFile(logFileName,
-		os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err != nil {
-		panic(err)
+	if task != "check" {
+		logFileName := filepath.Join(
+			viper.GetString("LogPath"),
+			strings.Split(filepath.Base(os.Args[0]), ".")[0]+"-"+task+".log")
+		logFile, err := os.OpenFile(logFileName,
+			os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		if err != nil {
+			panic(err)
+		}
+		defer logFile.Close()
+		log.SetOutput(io.MultiWriter(os.Stdout, logFile))
 	}
-	defer logFile.Close()
-	log.SetOutput(io.MultiWriter(os.Stdout, logFile))
 
 	switch task {
 	case "check":

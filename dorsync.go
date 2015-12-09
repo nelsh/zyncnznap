@@ -52,8 +52,8 @@ func dorsync(group string) {
 	// - send notice and exit
 	exitWithMailMsg := func(msg string) {
 		log.Printf("Exit with fatal error: %s\n", msg)
-		subj := fmt.Sprintf("zync'n'znap %s/%s/%s: Exit with fatal error",
-			strings.ToUpper(hostname), strings.ToUpper(task), strings.ToUpper(group))
+		subj := fmt.Sprintf("zync'n'znap %s/%s: Exit with fatal error",
+			strings.ToUpper(hostname), strings.ToUpper(group))
 		if err := sendReport(subj, msg); err != nil {
 			log.Printf("WARN: '%s'", err)
 		}
