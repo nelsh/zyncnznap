@@ -80,13 +80,12 @@ func dosnap() {
 			storagePeriod = getStorageTime("w")
 		}
 	}
-	//snapName := t.Format("20060102") + snapLabel
-	snapName := t.Format("20060102150405") + snapLabel
+	snapName := t.Format("20060102") + snapLabel
 	var oldSnapName string
 	if storagePeriod == 0 {
-		oldSnapName = t.Add(-time.Hour*24*(365*10)).Format("20060102150405") + snapLabel
-	} else { // time.Second => time.Hour*24
-		oldSnapName = t.Add(-time.Second*time.Duration(storagePeriod)).Format("20060102150405") + snapLabel
+		oldSnapName = t.Add(-time.Hour*24*(365*10)).Format("20060102") + snapLabel
+	} else {
+		oldSnapName = t.Add(-time.Hour*24*time.Duration(storagePeriod)).Format("20060102") + snapLabel
 	}
 	log.Printf("INFO: 'newSnapName' = %s", snapName)
 	log.Printf("INFO: 'oldSnapName' = %s", oldSnapName)

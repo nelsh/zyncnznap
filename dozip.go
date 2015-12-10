@@ -68,8 +68,8 @@ func dozip(group string) {
 		return "\n" + strings.Repeat("-", 60) + "\n"
 	}
 	totals := ZipTotals{
-		report: fmt.Sprintf("%-16s | %29s | %7s |",
-			"Server/Dir", "Size in Kb", "Minutes"),
+		report: fmt.Sprintf("%-25s | %20s | %7s |",
+			"Group/Server/Dir", "Size in Mb", "Minutes"),
 	}
 	totals.report += delimeter()
 
@@ -119,8 +119,8 @@ func dozip(group string) {
 			}
 			if !packtozip {
 				log.Printf("  WARN: skip dir '%s', packtozip = '%t'\n", dir, packtozip)
-				totals.report += fmt.Sprintf("%-16s | %29s | %7.2f |\n",
-					fmt.Sprintf("%s/%s", server, dir), "SKIP", 0.0)
+				totals.report += fmt.Sprintf("%-25s | %20s | %7.2f |\n",
+					fmt.Sprintf("%s/%s/%s", group, server, dir), "SKIP", 0.0)
 				continue
 			}
 			zipFileName := filepath.Join(viper.GetString("ZipPath"), strings.Join([]string{group, server, dir, dateString}, "_")+".zip")
@@ -150,9 +150,9 @@ func dozip(group string) {
 				msg := fmt.Sprintf("  WARN: error stat '%s'\n", zipFileName)
 				logTotals(&totals, msg)
 			} else {
-				fsize = humanize.Commaf(float64(fstat.Size()) / 1024)
+				fsize = humanize.Commaf(float64(fstat.Size()) / 1024 / 1024)
 			}
-			totals.report += fmt.Sprintf("%-16s | %29s | %7.2f |\n",
+			totals.report += fmt.Sprintf("%-25s | %20s | %7.2f |\n",
 				fmt.Sprintf("%s/%s", server, dir),
 				fsize[:(strings.Index(fsize, ".")+2)],
 				timeStop.Sub(timeStart).Minutes())
