@@ -23,6 +23,7 @@ type RsyncPar struct {
 	RemotePath string
 	LocalPath  string
 	LogPath    string
+	CfgPath    string
 }
 
 type RsyncRpt struct {
@@ -140,7 +141,9 @@ func dorsync(group string) {
 			logTotals(&totals, msg)
 			continue
 		}
-		rsyncPar := RsyncPar{DnsName: viper.GetString(dnsNameKey)}
+		rsyncPar := RsyncPar{
+			DnsName: viper.GetString(dnsNameKey),
+			CfgPath: cfgPath + "/"}
 		portKey := keyOfServers + "." + server + ".port"
 		if !viper.IsSet(portKey) {
 			rsyncPar.Port = 22
