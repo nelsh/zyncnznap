@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -16,11 +18,11 @@ import (
 )
 
 type RsyncPar struct {
-	port       int
-	dnsname    string
-	remotepath string
-	localpath  string
-	logpath    string
+	Port       int
+	DnsName    string
+	RemotePath string
+	LocalPath  string
+	LogPath    string
 }
 
 type RsyncRpt struct {
@@ -98,7 +100,10 @@ func dorsync(group string) {
 	if !viper.IsSet(rsyncArgsKey) {
 		exitWithMailMsg(fmt.Sprintf("Rsync cmd '%s' not found in config", rsyncArgsKey))
 	}
-	rsyncArgsTmpl := viper.GetString(rsyncArgsKey)
+	rsyncArgsTmpl, err := template.New("rsyncArgsTmpl").Parse(viper.GetString(rsyncArgsKey))
+	if err != nil {
+		exitWithMailMsg(fmt.Sprintf("Rsync template '%s' error", rsyncArgsKey))
+	}
 	/* end common check's */
 
 	/*
@@ -135,12 +140,12 @@ func dorsync(group string) {
 			logTotals(&totals, msg)
 			continue
 		}
-		rsyncPar := RsyncPar{dnsname: viper.GetString(dnsNameKey)}
+		rsyncPar := RsyncPar{DnsName: viper.GetString(dnsNameKey)}
 		portKey := keyOfServers + "." + server + ".port"
 		if !viper.IsSet(portKey) {
-			rsyncPar.port = 22
+			rsyncPar.Port = 22
 		} else {
-			rsyncPar.port = viper.GetInt(portKey)
+			rsyncPar.Port = viper.GetInt(portKey)
 		}
 
 		// check list of dirs
@@ -155,20 +160,26 @@ func dorsync(group string) {
 		// enumerate dirs
 		//
 		for dir := range dirs {
-			rsyncPar.localpath = filepath.Join(serverBackupPath, dir)
+			rsyncPar.LocalPath = filepath.Join(serverBackupPath, dir)
 			// if backup path not exist - skip
-			if _, err := os.Stat(rsyncPar.localpath); os.IsNotExist(err) {
-				msg := fmt.Sprintf("  WARN: skip dir '%s', path '%s' not exist\n", dir, rsyncPar.localpath)
+			if _, err := os.Stat(rsyncPar.LocalPath); os.IsNotExist(err) {
+				msg := fmt.Sprintf("  WARN: skip dir '%s', path '%s' not exist\n", dir, rsyncPar.LocalPath)
 				logTotals(&totals, msg)
 				continue
 			}
 			log.Printf("\tsync dir '%s' with par:\n", dir)
 			// construct rsync parameters
-			rsyncPar.remotepath = viper.GetString(keyOfDirs + "." + dir + ".remote")
-			rsyncPar.logpath = filepath.Join(viper.GetString("LogPath"),
+			rsyncPar.RemotePath = viper.GetString(keyOfDirs + "." + dir + ".remote")
+			rsyncPar.LogPath = filepath.Join(viper.GetString("LogPath"),
 				strings.Join([]string{group, server, dir}, "-")+".log")
-			rsyncArgString := fmt.Sprintf(rsyncArgsTmpl,
-				rsyncPar.port, rsyncPar.logpath, rsyncPar.dnsname, rsyncPar.remotepath, rsyncPar.localpath)
+			var buf bytes.Buffer
+			err = rsyncArgsTmpl.Execute(&buf, rsyncPar)
+			if err != nil {
+				msg := fmt.Sprintf("  WARN: skip dir '%s', template error '%s'n", dir, err)
+				logTotals(&totals, msg)
+				continue
+			}
+			rsyncArgString := buf.String()
 			log.Println(rsyncArgString)
 			rsyncArgs := strings.Fields(rsyncArgString)
 			// if par like '-e_ssh_-p_22_-i_rsbackup.rsa'
@@ -245,7 +256,7 @@ func dorsync(group string) {
 		totals.rsyncErrorTask, totals.warnNum, totals.rsyncTotalTask)
 	msg := totals.report + delimeter() + totals.rsyncErrMsg + delimeter() + totals.warnMsg
 	// write report to logpath
-	err := ioutil.WriteFile(
+	err = ioutil.WriteFile(
 		filepath.Join(viper.GetString("LogPath"), "report.log"),
 		[]byte(subj+"\n\n"+msg), 0666)
 	if err != nil {

@@ -17,7 +17,7 @@ var (
 	task      string
 	checkonly bool   // Optional for task 'check'
 	group     string // Required for task 'sync'
-	cfgpath   string
+	cfgPath   string
 )
 
 func init() {
@@ -58,8 +58,8 @@ func init() {
 	/*
 		Read configuration
 	*/
-	cfgpath = filepath.Join("/etc", filepath.Base(os.Args[0]))
-	viper.SetConfigFile(filepath.Join(cfgpath, filepath.Base(os.Args[0])+".toml"))
+	cfgPath = filepath.Join("/etc", filepath.Base(os.Args[0]))
+	viper.SetConfigFile(filepath.Join(cfgPath, filepath.Base(os.Args[0])+".toml"))
 	if err := viper.ReadInConfig(); err != nil {
 		panic(err)
 	}
