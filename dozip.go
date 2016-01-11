@@ -124,7 +124,7 @@ func dozip(group string) {
 				continue
 			}
 			zipFileName := filepath.Join(viper.GetString("ZipPath"), strings.Join([]string{group, server, dir, dateString}, "_")+".zip")
-			zipArgsString := fmt.Sprintf("-r -lf %s %s %s",
+			zipArgsString := fmt.Sprintf("-r --exclude=*.zfs* -lf %s %s %s",
 				filepath.Join(viper.GetString("LogPath"), strings.Join([]string{"zip", group, server, dir}, "-")+".log"),
 				zipFileName,
 				dirBackupPath)
@@ -153,7 +153,7 @@ func dozip(group string) {
 				fsize = humanize.Commaf(float64(fstat.Size()) / 1024 / 1024)
 			}
 			totals.report += fmt.Sprintf("%-25s | %20s | %7.2f |\n",
-				fmt.Sprintf("%s/%s", server, dir),
+				fmt.Sprintf("%s/%s/%s", group, server, dir),
 				fsize[:(strings.Index(fsize, ".")+2)],
 				timeStop.Sub(timeStart).Minutes())
 		}

@@ -72,10 +72,11 @@ func dosnap() {
 		storagePeriod = getStorageTime("d")
 	} else {
 		_, weekNum := t.ISOWeek()
-		if weekNum%13 == 1 {
+		switch weekNum {
+		case 1, 14, 27, 40:
 			snapLabel = "q"
 			storagePeriod = getStorageTime("q")
-		} else {
+		default:
 			snapLabel = "w"
 			storagePeriod = getStorageTime("w")
 		}
