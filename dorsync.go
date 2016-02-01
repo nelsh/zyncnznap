@@ -17,16 +17,17 @@ import (
 	"github.com/spf13/viper"
 )
 
-type RsyncPar struct {
+type rsyncPar struct {
 	Port       int
-	DnsName    string
+	DNSName    string
 	RemotePath string
 	LocalPath  string
 	LogPath    string
 	CfgPath    string
+	SSHUser    string
 }
 
-type RsyncRpt struct {
+type rsyncRpt struct {
 	serverdir      string
 	numFilesTotal  string
 	numFilesRcvd   string
@@ -35,7 +36,7 @@ type RsyncRpt struct {
 	howlong        time.Duration
 }
 
-type SyncTotals struct {
+type syncTotals struct {
 	warnMsg        string
 	warnNum        int
 	rsyncErrMsg    string
@@ -77,6 +78,10 @@ func dorsync(group string) {
 		exitWithMailMsg("write pid file: " + err.Error())
 	}
 
+	// check default SSHUser
+	if !viper.IsSet("SSHUser") {
+		exitWithMailMsg("Default 'SSHuser' not found in config")
+	}
 	// check group exist
 	if !viper.IsSet("groups." + group) {
 		exitWithMailMsg(fmt.Sprintf("Group '%s' not found in config", group))
@@ -113,7 +118,7 @@ func dorsync(group string) {
 	delimeter := func() string {
 		return "\n" + strings.Repeat("-", 80) + "\n"
 	}
-	totals := SyncTotals{
+	totals := syncTotals{
 		report: fmt.Sprintf("%-16s | %17s | %29s | %7s |",
 			"Server/Dir", "Files recv/total", "Size in Kb recv/total", "Minutes"),
 	}
@@ -123,7 +128,7 @@ func dorsync(group string) {
 	//
 	for server := range servers {
 		// using 'logTotals' in local checks
-		logTotals := func(totals *SyncTotals, msg string) {
+		logTotals := func(totals *syncTotals, msg string) {
 			totals.warnNum++
 			totals.warnMsg += msg
 			log.Printf(msg)
@@ -141,14 +146,20 @@ func dorsync(group string) {
 			logTotals(&totals, msg)
 			continue
 		}
-		rsyncPar := RsyncPar{
-			DnsName: viper.GetString(dnsNameKey),
+		rsyncPar := rsyncPar{
+			DNSName: viper.GetString(dnsNameKey),
 			CfgPath: cfgPath + "/"}
 		portKey := keyOfServers + "." + server + ".port"
 		if !viper.IsSet(portKey) {
 			rsyncPar.Port = 22
 		} else {
 			rsyncPar.Port = viper.GetInt(portKey)
+		}
+		sshUserKey := keyOfServers + "." + server + ".SSHUser"
+		if !viper.IsSet(sshUserKey) {
+			rsyncPar.SSHUser = viper.GetString("SSHUser")
+		} else {
+			rsyncPar.SSHUser = viper.GetString(sshUserKey)
 		}
 
 		// check list of dirs
@@ -206,7 +217,7 @@ func dorsync(group string) {
 			timeStop := time.Now()
 
 			// make rsync summary
-			rsyncRpt := RsyncRpt{
+			rsyncRpt := rsyncRpt{
 				serverdir:      fmt.Sprintf("%s/%s", server, dir),
 				howlong:        timeStop.Sub(timeStart),
 				numFilesTotal:  "err",

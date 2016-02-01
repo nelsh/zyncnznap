@@ -150,7 +150,19 @@ func dosnap() {
 					// if snap without error
 					log.Printf("\tSNAP: '%s/%s/%s' = OK\n", group, server, dir)
 					newSnapResult = "OK"
-					// storageTime set?
+					var oldSnapNameDir = oldSnapName
+					// set local storageperiod?
+					var storageperiodKey = "groups." + group + ".servers." + server + ".dirs." + dir + ".storageperiod-" + snapLabel
+					if viper.IsSet(storageperiodKey) {
+						var storagePeriod = viper.GetInt(storageperiodKey)
+						if storagePeriod > 0 {
+							oldSnapNameDir = t.Add(-time.Hour*24*time.Duration(storagePeriod)).Format("20060102") + snapLabel
+							log.Printf("\tINFO: '%s' = %d , %s", storageperiodKey, storagePeriod, oldSnapNameDir)
+						} else {
+							log.Printf("\tWARN: '%s' not set or zero. Using default", storageperiodKey)
+						}
+					}
+					// set storageperiod?
 					if storagePeriod == 0 {
 						delSnapResult = "Disabled"
 						//goto end
@@ -171,7 +183,7 @@ func dosnap() {
 							for _, sn := range snapShots {
 								if strings.HasSuffix(sn.Name, snapLabel) {
 									snapTotal++
-									if zPath+"@"+oldSnapName > sn.Name {
+									if zPath+"@"+oldSnapNameDir > sn.Name {
 										snapDeleting++
 										if err := sn.Destroy(zfs.DestroyDefault); err != nil {
 											msg := fmt.Sprintf("\tERROR: '%s/%s/%s', error: '%s'\n",
