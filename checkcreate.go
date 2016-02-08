@@ -44,20 +44,20 @@ func checkcreate() {
 	}
 	// check zippath
 	zipPath := viper.GetString("ZipPath")
-	if err := isExistZfsPartition(zipPath[1:], ""); err != nil {
+	if !isExistZfsPartition(zipPath[1:], "") {
 		if !checkonly {
 			makeZfsPartition(zipPath[1:], "")
 		}
 	}
 	// check root backup path
-	if err := isExistZfsPartition(viper.GetString("ZfsPath"), ""); err != nil {
-		log.Panic(err)
+	if !isExistZfsPartition(viper.GetString("ZfsPath"), "") {
+		log.Panic(fmt.Sprintf("ZFS Volume '%s' not exist", viper.GetString("ZfsPath")))
 	}
 
 	// enumerate backups and check path
 	for group := range viper.GetStringMap("groups") {
 		zPath := path.Join(viper.GetString("ZfsPath"), group)
-		if err := isExistZfsPartition(zPath, ""); err != nil {
+		if !isExistZfsPartition(zPath, "") {
 			if checkonly {
 				continue
 			} else {
@@ -66,7 +66,7 @@ func checkcreate() {
 		}
 		for server := range viper.GetStringMap("groups." + group + ".servers") {
 			zPath := path.Join(zPath, server)
-			if err := isExistZfsPartition(zPath, "\t"); err != nil {
+			if !isExistZfsPartition(zPath, "\t") {
 				if checkonly {
 					continue
 				} else {
@@ -75,7 +75,7 @@ func checkcreate() {
 			}
 			for dir := range viper.GetStringMap("groups." + group + ".servers." + server + ".dirs") {
 				zPath := path.Join(zPath, dir)
-				if err := isExistZfsPartition(zPath, "\t\t"); err != nil {
+				if !isExistZfsPartition(zPath, "\t\t") {
 					if checkonly {
 						continue
 					} else {
@@ -87,20 +87,20 @@ func checkcreate() {
 	}
 }
 
-func isExistZfsPartition(zPath string, level string) (err error) {
+func isExistZfsPartition(zPath string, level string) bool {
 	msg := fmt.Sprintf("%s%s...", level, zPath)
-	if _, err = zfs.GetDataset(zPath); err != nil {
-		msg += "ERROR..."
+	if _, err := zfs.GetDataset(zPath); err != nil {
+		msg += ("ERROR:" + err.Error())
 		if checkonly {
 			log.Println(msg)
 		}
 		if !strings.Contains(err.Error(), "dataset does not exist") {
 			log.Panicf("%s %s", msg, err)
 		}
-	} else {
-		log.Printf("%s OK\n", msg)
+		return false
 	}
-	return err
+	log.Printf("%s OK\n", msg)
+	return true
 }
 
 func makeZfsPartition(zPath string, level string) {
