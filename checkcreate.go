@@ -82,6 +82,46 @@ func checkcreate() {
 						makeZfsPartition(zPath, "\t\t")
 					}
 				}
+				if !checkonly {
+					//
+					// snapdir option - get/check/set
+					//
+					var snapdir string // -o snapdir=visible
+					keyOfSnapdir := "groups." + group + ".servers." + server + ".dirs." + dir + ".snapdir"
+					if viper.IsSet(keyOfSnapdir) {
+						snapdir = viper.GetString(keyOfSnapdir)
+					}
+					switch snapdir {
+					case "visible":
+						snapdir = "visible"
+					default:
+						snapdir = "hidden"
+					}
+					if ds, err := zfs.GetDataset(zPath); err != nil {
+						log.Panic(err)
+					} else {
+						// see next comment
+						log.Printf("\t\t\tset snapdir = %s", snapdir)
+						if err := ds.SetProperty("snapdir", snapdir); err != nil {
+							log.Panic(err)
+						}
+						// ds.GetProperty("snapdir") - always return "VALUE"
+						/*
+							if current, err := ds.GetProperty("snapdir"); err != nil {
+								log.Panic(err)
+							} else {
+								log.Printf("\t\t\tcurrent snapdir = %s", current)
+								if current != snapdir {
+									log.Printf("\t\t\tset snapdir = %s", snapdir)
+									if err := ds.SetProperty("snapdir", snapdir); err != nil {
+										log.Panic(err)
+									}
+								}
+							}
+						*/
+					}
+				}
+
 			}
 		}
 	}
