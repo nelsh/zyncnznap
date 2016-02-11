@@ -10,11 +10,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/mistifyio/go-zfs"
 	"github.com/spf13/viper"
 )
 
-type SnapTotals struct {
+type snapTotals struct {
 	warnMsg   string
 	warnNum   int
 	ErrMsg    string
@@ -25,6 +26,21 @@ type SnapTotals struct {
 
 func dosnap() {
 	hostname := getHostName()
+	var zpoolSummary string
+	if tank, err := zfs.GetZpool(strings.Split(viper.GetString("ZfsPath"), "/")[0]); err != nil {
+		log.Printf("Exit with fatal error: %s\n", err)
+		subj := fmt.Sprintf("zync'n'znap snap %s: Exit with fatal error",
+			strings.ToUpper(hostname))
+		if err := sendReport(subj, err.Error()); err != nil {
+			log.Printf("WARN: '%s'", err)
+		}
+		os.Exit(1)
+	} else {
+		zpoolSummary = fmt.Sprintf("Zpool '%s' is %s. Used: %s Gb. Free: %s Gb",
+			tank.Name, tank.Health,
+			strings.Split(humanize.Commaf(float64(tank.Allocated)/1024/1024/1024), ".")[0],
+			strings.Split(humanize.Commaf(float64(tank.Free)/1024/1024/1024), ".")[0])
+	}
 	// check root backup path
 	if _, err := zfs.GetDataset(viper.GetString("ZfsPath")); err != nil {
 		log.Printf("Exit with fatal error: %s\n", err)
@@ -43,7 +59,7 @@ func dosnap() {
 	delimeter := func() string {
 		return "\n" + strings.Repeat("-", 52) + "\n"
 	}
-	totals := SnapTotals{
+	totals := snapTotals{
 		report: fmt.Sprintf("%-25s | %7s | %12s |",
 			"Group/Server/Dir", "New", "Delete"),
 	}
@@ -94,7 +110,7 @@ func dosnap() {
 	// enumerate backups and check path
 	for group := range viper.GetStringMap("groups") {
 		// using 'logTotals' in local checks
-		logWarnTotals := func(totals *SnapTotals, msg string) {
+		logWarnTotals := func(totals *snapTotals, msg string) {
 			totals.warnNum++
 			totals.warnMsg += msg
 			log.Printf(msg)
@@ -131,7 +147,7 @@ func dosnap() {
 						fmt.Sprintf("%s/%s/%s", group, server, dir), "ERROR", "ERROR")
 					continue
 				}
-				logSnapErrTotals := func(totals *SnapTotals, msg string) {
+				logSnapErrTotals := func(totals *snapTotals, msg string) {
 					totals.ErrNum++
 					totals.ErrMsg += msg
 					log.Printf(msg)
@@ -213,7 +229,8 @@ func dosnap() {
 	subj := fmt.Sprintf("zync'n'znap snap %s/%s: err/warn/total = %d/%d/%d",
 		strings.ToUpper(hostname), strings.ToUpper(group),
 		totals.ErrNum, totals.warnNum, totals.TotalDirs)
-	msg := totals.report + delimeter() + totals.ErrMsg + delimeter() + totals.warnMsg
+	msg := zpoolSummary + delimeter() + totals.report + delimeter() +
+		totals.ErrMsg + delimeter() + totals.warnMsg
 	// write report to logpath
 	err := ioutil.WriteFile(
 		filepath.Join(viper.GetString("LogPath"), "snap-report.log"),
