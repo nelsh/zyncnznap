@@ -47,8 +47,8 @@ type syncTotals struct {
 
 func dorsync(group string) {
 	hostname := getHostName()
-	pidFileName := filepath.Join(
-		"/run/lock", strings.Split(filepath.Base(os.Args[0]), ".")[0]+group+".pid")
+	lockFileName := filepath.Join(
+		"/var/tmp", strings.Split(filepath.Base(os.Args[0]), ".")[0]+group+".lock")
 	/*
 		RUN CHECK'S
 	*/
@@ -61,20 +61,20 @@ func dorsync(group string) {
 		if err := sendReport(subj, msg); err != nil {
 			log.Printf("WARN: '%s'", err)
 		}
-		os.Remove(pidFileName)
+		os.Remove(lockFileName)
 		os.Exit(1)
 	}
 	// check one: it's already running?
-	if _, err := os.Stat(pidFileName); err == nil {
-		if procnum, err := ioutil.ReadFile(pidFileName); err != nil {
-			exitWithMailMsg("read pid file: " + err.Error())
+	if _, err := os.Stat(lockFileName); err == nil {
+		if procnum, err := ioutil.ReadFile(lockFileName); err != nil {
+			exitWithMailMsg("read lock file: " + err.Error())
 		} else {
 			exitWithMailMsg(fmt.Sprintf("File '%s' is exist, process number: %s",
-				pidFileName, string(procnum)))
+				lockFileName, string(procnum)))
 		}
 	}
 	// - create pid
-	if err := ioutil.WriteFile(pidFileName, []byte(strconv.Itoa(os.Getpid())), 0644); err != nil {
+	if err := ioutil.WriteFile(lockFileName, []byte(strconv.Itoa(os.Getpid())), 0644); err != nil {
 		exitWithMailMsg("write pid file: " + err.Error())
 	}
 
@@ -280,5 +280,5 @@ func dorsync(group string) {
 	if err := sendReport(subj, msg); err != nil {
 		log.Printf("WARN: '%s'", err)
 	}
-	os.Remove(pidFileName)
+	os.Remove(lockFileName)
 }
