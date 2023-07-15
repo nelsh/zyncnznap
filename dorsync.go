@@ -232,7 +232,7 @@ func dorsync(group string) {
 					" ")[0])
 			}
 			getSize := func(s string) string {
-				i, err := strconv.Atoi(strings.Replace(getNum(s), ",", "", -1))
+				i, err := strconv.Atoi(strings.ReplaceAll(strings.ReplaceAll(getNum(s), ",", ""), ".", ""))
 				if err != nil {
 					return "err"
 				}
